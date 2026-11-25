@@ -1,0 +1,12 @@
+{
+  "name": "lol-coach-marketplace",
+  "description": "League of Legends coaching plugin for Claude Code.",
+  "owner": { "name": "lol-coach contributors" },
+  "plugins": [
+    {
+      "name": "lol-coach",
+      "source": "./",
+      "description": "League of Legends coach powered by your Riot match data."
+    }
+  ]
+}

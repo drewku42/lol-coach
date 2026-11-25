@@ -1,0 +1,14 @@
+{
+  "name": "lol-coach",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Claude Code plugin: League of Legends coach backed by the Riot API.",
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "start": "node server/index.mjs",
+    "setup": "node server/setup.mjs",
+    "test": "node --test"
+  }
+}
