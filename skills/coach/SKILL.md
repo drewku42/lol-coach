@@ -36,6 +36,10 @@ shows what is standard and what wins on the current patch. Use both and compare.
   summoner spells and counters for a champion in a position. Pass the player's own tier (for
   example `tier: "silver"`) so the numbers describe their games, not Challenger's.
 - `lol_get_lane_matchup_guide`: a specific matchup (`my_champion`, `opponent_champion`, `position`).
+  Returns which champion has the lane and solo-kill advantage, a matchup tip, items and runes
+  taken in that matchup, and win rate by game length. The head-to-head record is the opponent's
+  entry in `data.counters` (`win / play` is the player's champion's win rate). The response is
+  large (tens of kilobytes) and cannot be trimmed, so call it once per matchup that matters.
 - `lol_list_lane_meta_champions`: tier list for a lane, useful for champion pool advice.
 - `lol_get_champion_synergies` and `lol_list_champion_leaderboard` when the question calls for them.
 
