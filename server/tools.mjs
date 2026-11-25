@@ -32,6 +32,14 @@ async function pooled(items, limit, deadline, fn) {
   return results;
 }
 
+// Fetch a match and swap the API's internal champion names ("MonkeyKing") for display names ("Wukong").
+async function getMatch(client, id, region) {
+  const [match, staticData] = await Promise.all([client.match(id, region), client.staticData()]);
+  const names = staticData.championNames || {};
+  for (const p of match.info.participants) p.championName = names[p.championName] || p.championName;
+  return match;
+}
+
 const player = (client, args) =>
   client.resolvePlayer(args.riot_id, args.platform ? normalizePlatform(args.platform) : undefined);
 
@@ -89,7 +97,7 @@ export const TOOLS = [
       const ids = await client.matchIds(p, { start: clampInt(args.start, 0, 0, 100000), count, queue: queueId(args.queue) });
       const staticData = await client.staticData();
       const deadline = Date.now() + 80000;
-      const matches = await pooled(ids, 4, deadline, (id) => client.match(id, p.region));
+      const matches = await pooled(ids, 4, deadline, (id) => getMatch(client, id, p.region));
       const done = matches.filter(Boolean);
       const out = { riotId: p.riotId, matches: done.map((m) => summarizeMatch(m, p.puuid, staticData)) };
       if (done.length < ids.length) {
@@ -109,7 +117,7 @@ export const TOOLS = [
     },
     async handler(client, args) {
       const p = await player(client, args);
-      const [match, staticData] = await Promise.all([client.match(args.match_id), client.staticData()]);
+      const [match, staticData] = await Promise.all([getMatch(client, args.match_id), client.staticData()]);
       return matchDetail(match, p.puuid, staticData);
     },
   },
@@ -125,7 +133,7 @@ export const TOOLS = [
     async handler(client, args) {
       const p = await player(client, args);
       const [match, timeline, staticData] = await Promise.all([
-        client.match(args.match_id), client.timeline(args.match_id), client.staticData(),
+        getMatch(client, args.match_id), client.timeline(args.match_id), client.staticData(),
       ]);
       return analyzeTimeline(match, timeline, p.puuid, staticData);
     },
@@ -155,7 +163,7 @@ export const TOOLS = [
       const ids = await client.matchIds(p, { count, queue: queueId(args.queue) });
       const deadline = Date.now() + 85000;
       const records = (await pooled(ids, 4, deadline, async (id) => {
-        const match = await client.match(id, p.region);
+        const match = await getMatch(client, id, p.region);
         const timeline = withTimelines && match.info.gameMode === 'CLASSIC'
           ? await client.timeline(id, p.region).catch(() => null)
           : null;

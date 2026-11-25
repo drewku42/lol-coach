@@ -306,7 +306,7 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
           objectives.push({
             time: clock(e.timestamp),
             team: mine ? 'ally' : 'enemy',
-            objective: (e.monsterSubType || e.monsterType || '').toLowerCase().replace(/_/g, ' '),
+            objective: (e.monsterSubType || e.monsterType || '').toLowerCase().replace(/_/g, ' ').replace('horde', 'void grub'),
             playerInvolved: e.killerId === id || (e.assistingParticipantIds || []).includes(id),
           });
           break;

@@ -183,6 +183,8 @@ test('MCP server end to end', async () => {
   assert.equal(history.matches[0].items[0], "Rabadon's Deathcap");
 
   assert.equal((await call('get_match_detail', { match_id: 'NA1_1' })).laneOpponent.champion, 'Zed');
+  const detail = await call('get_match_detail', { match_id: 'NA1_1' });
+  assert.ok(detail.teams[0].players.some((x) => x.champion === 'Lee Sin'), 'display names, not API names');
   assert.equal((await call('get_match_timeline', { match_id: 'NA1_1' })).deaths.length, 3);
 
   const habits = await call('analyze_habits', { count: 10 });

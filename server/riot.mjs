@@ -212,7 +212,7 @@ export class RiotClient {
 
   async staticData() {
     if (this._static) return this._static;
-    const cached = this.readCache('static', 'ddragon');
+    const cached = this.readCache('static', 'ddragon-v2');
     if (cached && Date.now() - cached.fetchedAt < 3 * 24 * 3600 * 1000) {
       return (this._static = cached);
     }
@@ -228,14 +228,17 @@ export class RiotClient {
         get(`${base}/cdn/${version}/data/en_US/item.json`),
         get(`${base}/cdn/${version}/data/en_US/champion.json`),
       ]);
-      const data = { fetchedAt: Date.now(), version, items: {}, champions: {} };
+      const data = { fetchedAt: Date.now(), version, items: {}, champions: {}, championNames: {} };
       for (const [id, item] of Object.entries(items.data)) data.items[id] = item.name;
-      for (const champ of Object.values(champs.data)) data.champions[champ.key] = champ.name;
-      this.writeCache('static', 'ddragon', data);
+      for (const champ of Object.values(champs.data)) {
+        data.champions[champ.key] = champ.name; // numeric id -> display name
+        data.championNames[champ.id] = champ.name; // API name ("MonkeyKing") -> display name ("Wukong")
+      }
+      this.writeCache('static', 'ddragon-v2', data);
       return (this._static = data);
     } catch {
       // Names are a nicety; fall back to stale cache or raw IDs.
-      return (this._static = cached || { version: null, items: {}, champions: {} });
+      return (this._static = cached || { version: null, items: {}, champions: {}, championNames: {} });
     }
   }
 }

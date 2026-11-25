@@ -97,7 +97,7 @@ export function fakeFetch(matches, { timelineOpts, log = [] } = {}) {
     if (u.host.startsWith('ddragon')) {
       if (p.endsWith('versions.json')) return json(['16.23.1']);
       if (p.endsWith('item.json')) return json({ data: { 3089: { name: "Rabadon's Deathcap" }, 1056: { name: "Doran's Ring" } } });
-      if (p.endsWith('champion.json')) return json({ data: { Ahri: { key: '103', name: 'Ahri' } } });
+      if (p.endsWith('champion.json')) return json({ data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri' }, LeeSin: { id: 'LeeSin', key: '64', name: 'Lee Sin' } } });
     }
     if (p.includes('/accounts/by-riot-id/')) return json({ puuid: ME, gameName: 'Tester', tagLine: 'NA1' });
     if (p.includes('/summoners/by-puuid/')) return json({ summonerLevel: 120, profileIconId: 1 });
