@@ -60,7 +60,7 @@ Every tool defaults to your configured account and accepts `riot_id` and `platfo
 other player, so you can scout a friend or a duo partner.
 
 Match data is cached on disk (matches never change), which keeps repeat analysis fast and inside
-the development key rate limit of 100 requests per 2 minutes. If a large first-time request hits
+the development key rate limits (20 requests per second and 100 per 2 minutes, per routing value). If a large first-time request hits
 the limit, the tool returns what it has and says to call again.
 
 ## Limits worth knowing

@@ -134,6 +134,8 @@ test('RiotClient: routing, auth header, caching, missing key', async () => {
   await client.match('NA1_1');
   assert.equal(log.length, calls, 'second read comes from disk cache');
   assert.ok(fs.existsSync(path.join(dir, 'matches', 'NA1_1.json.gz')));
+  assert.deepEqual([...client.limiters.keys()].sort(), ['americas', 'na1'], 'one rate budget per routing value');
+  assert.equal(client.limiterFor('na1').stamps.length, 1);
 
   const noKey = new RiotClient({ fetchImpl: fakeFetch(matches), cache: tmp(), getConfig: cfg({ apiKey: '' }) });
   await assert.rejects(() => noKey.resolvePlayer(), /No Riot API key/);

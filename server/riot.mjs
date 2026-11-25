@@ -56,7 +56,8 @@ export class RiotClient {
     this.fetch = fetchImpl;
     this.cache = cache;
     this.getConfig = getConfig;
-    this.limiter = new RateLimiter();
+    // Riot enforces limits per routing value (na1, americas, ...), so each host gets its own budget.
+    this.limiters = new Map();
     this.memo = new Map();
   }
 
@@ -65,6 +66,11 @@ export class RiotClient {
   }
 
   // ---- low-level -----------------------------------------------------------
+
+  limiterFor(host) {
+    if (!this.limiters.has(host)) this.limiters.set(host, new RateLimiter());
+    return this.limiters.get(host);
+  }
 
   async request(host, pathname, { query, allow404 = false } = {}) {
     const { apiKey } = this.getConfig();
@@ -76,7 +82,7 @@ export class RiotClient {
     }
 
     for (let attempt = 0; ; attempt++) {
-      await this.limiter.acquire();
+      await this.limiterFor(host).acquire();
       let res;
       try {
         res = await this.fetch(url, { headers: { 'X-Riot-Token': apiKey } });
