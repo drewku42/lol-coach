@@ -18,7 +18,7 @@ matchups and win rates, so the coach can compare what you did with what works on
 Requires Claude Code and Node.js 18 or newer. No npm install needed.
 
 ```bash
-claude plugin marketplace add <github-owner>/lol-coach
+claude plugin marketplace add drewku42/lol-coach
 ```
 
 ```bash
