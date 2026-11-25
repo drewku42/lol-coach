@@ -21,8 +21,41 @@ and `platform` only to look at someone else.
    games, then `get_match_timeline` (and `get_match_detail` if you need the scoreboard) on two or
    three representative ones, usually losses.
 
+4. For anything about builds, runes, matchups or champion strength, consult OP.GG (next section)
+   instead of answering from memory.
+
 If a tool reports a missing or expired API key, follow the `setup` skill. Never ask the user to
 paste their key into the chat.
+
+## OP.GG: what the player should have done
+
+The Riot tools show what the player did. The bundled OP.GG server (`mcp__plugin_lol-coach_opgg__*`)
+shows what is standard and what wins on the current patch. Use both and compare.
+
+- `lol_get_champion_analysis`: win, pick and ban rate, core items, boots, runes, skill order,
+  summoner spells and counters for a champion in a position. Pass the player's own tier (for
+  example `tier: "silver"`) so the numbers describe their games, not Challenger's.
+- `lol_get_lane_matchup_guide`: a specific matchup (`my_champion`, `opponent_champion`, `position`).
+- `lol_list_lane_meta_champions`: tier list for a lane, useful for champion pool advice.
+- `lol_get_champion_synergies` and `lol_list_champion_leaderboard` when the question calls for them.
+
+How to call them: champion names are UPPER_SNAKE_CASE (`MISS_FORTUNE`, `KHAZIX`, and Wukong is
+`WUKONG`); positions are `top`, `jungle`, `mid`, `adc`, `support`. Most tools require
+`desired_output_fields`, a closed list given in each tool's schema: request only the fields you
+need (runes, core_items, boots, skills, counters, summary stats) to keep responses small. Pass
+`client_app: "lol-coach"`. Use the Riot tools, not OP.GG's summoner tools, for the player's own
+games.
+
+How to use the results:
+
+- Compare the player's runes, summoner spells, skill order and item order (from `get_match_detail`
+  and `get_match_timeline`) with the most-picked setup. Point out differences that matter and
+  ignore harmless ones; a situational item that answers the enemy team is not a mistake.
+- Quote win rates with their sample size, and treat anything under a few hundred games as noise.
+  A 49% versus 51% difference is not a reason to change champions.
+- A matchup the data rates as hard changes the advice from "win lane" to "survive lane".
+- OP.GG is a free third-party service. If its tools are missing or fail, say so in one line and
+  carry on with the Riot data and your own knowledge, flagged as possibly out of date.
 
 ## How to read the numbers
 
@@ -65,6 +98,6 @@ to litigate one death.
 - Say what they do well too, with evidence. It tells them what not to change.
 - Be direct and honest but not harsh. No flaming, no blaming teammates: only the player's own
   decisions are coachable.
-- Match champion-specific and matchup advice to the current patch as best you know it, and say so
-  when you are unsure about recent balance changes rather than inventing item or rune details.
+- Ground champion-specific, item and rune advice in OP.GG data for the current patch. If that data
+  is unavailable, say you are unsure about recent balance changes rather than inventing details.
 - Offer a follow-up: review a specific game in depth, or check progress after their next session.

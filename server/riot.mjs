@@ -212,7 +212,7 @@ export class RiotClient {
 
   async staticData() {
     if (this._static) return this._static;
-    const cached = this.readCache('static', 'ddragon-v2');
+    const cached = this.readCache('static', 'ddragon-v3');
     if (cached && Date.now() - cached.fetchedAt < 3 * 24 * 3600 * 1000) {
       return (this._static = cached);
     }
@@ -224,21 +224,28 @@ export class RiotClient {
       };
       const base = 'https://ddragon.leagueoflegends.com';
       const [version] = await get(`${base}/api/versions.json`);
-      const [items, champs] = await Promise.all([
+      const [items, champs, runes, spells] = await Promise.all([
         get(`${base}/cdn/${version}/data/en_US/item.json`),
         get(`${base}/cdn/${version}/data/en_US/champion.json`),
+        get(`${base}/cdn/${version}/data/en_US/runesReforged.json`),
+        get(`${base}/cdn/${version}/data/en_US/summoner.json`),
       ]);
-      const data = { fetchedAt: Date.now(), version, items: {}, champions: {}, championNames: {} };
+      const data = { fetchedAt: Date.now(), version, items: {}, champions: {}, championNames: {}, runes: {}, spells: {} };
+      for (const tree of runes) {
+        data.runes[tree.id] = tree.name;
+        for (const slot of tree.slots) for (const rune of slot.runes) data.runes[rune.id] = rune.name;
+      }
+      for (const spell of Object.values(spells.data)) data.spells[spell.key] = spell.name;
       for (const [id, item] of Object.entries(items.data)) data.items[id] = item.name;
       for (const champ of Object.values(champs.data)) {
         data.champions[champ.key] = champ.name; // numeric id -> display name
         data.championNames[champ.id] = champ.name; // API name ("MonkeyKing") -> display name ("Wukong")
       }
-      this.writeCache('static', 'ddragon-v2', data);
+      this.writeCache('static', 'ddragon-v3', data);
       return (this._static = data);
     } catch {
       // Names are a nicety; fall back to stale cache or raw IDs.
-      return (this._static = cached || { version: null, items: {}, champions: {}, championNames: {} });
+      return (this._static = cached || { version: null, items: {}, champions: {}, championNames: {}, runes: {}, spells: {} });
     }
   }
 }

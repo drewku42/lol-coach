@@ -16,7 +16,11 @@ Which game: $ARGUMENTS (blank means the most recent completed game).
    Skip remakes. If the choice is ambiguous, pick the most recent match that fits and say which
    one you picked.
 2. Call `get_match_detail` and `get_match_timeline` for it, in parallel.
-3. Optionally call `analyze_habits` if you want to say whether a mistake here is a recurring
+3. Call OP.GG (`mcp__plugin_lol-coach_opgg__*`, usage notes in the `coach` skill) for the standard
+   picture: `lol_get_champion_analysis` for the player's champion and position at their tier, and
+   `lol_get_lane_matchup_guide` against their lane opponent. If OP.GG is unavailable, continue
+   without it and say so.
+4. Optionally call `analyze_habits` if you want to say whether a mistake here is a recurring
    pattern or a one-off.
 
 ## Write the review
@@ -30,8 +34,11 @@ Structure it as the story of the game, then the lessons:
 - **Mid game (14:00-25:00)**: objectives each team took and whether the player was involved,
   deaths classified as picks or fights, whether a lead was used or thrown.
 - **Late game**: the fights or picks that decided it; deaths with large shutdown gold.
-- **Build and vision**: shop visits against what the enemy team needed (heavy AP, healing, tanks),
-  control wards bought, wards placed per phase.
+- **Matchup**: what OP.GG says about this lane matchup (win rate with sample size) and whether the
+  game followed the expected pattern.
+- **Build and vision**: the player's runes, summoner spells, skill order and item order against the
+  most-picked setup from OP.GG, and against what the enemy team called for (heavy AP, healing,
+  tanks); control wards bought, wards placed per phase.
 - **Turning point**: the one or two moments that swung the game most, with timestamps.
 - **Takeaways**: at most three specific habits to practice next game, plus one thing done well.
 

@@ -109,7 +109,7 @@ export const TOOLS = [
   {
     name: 'get_match_detail',
     description:
-      'Full post-game breakdown of one match: the player\'s detailed stats, a side-by-side with their lane opponent, both teams\' scoreboards, and objective counts.',
+      'Full post-game breakdown of one match: the player\'s detailed stats, runes and summoner spells, a side-by-side with their lane opponent, both teams\' scoreboards, and objective counts.',
     inputSchema: {
       type: 'object',
       properties: { match_id: { type: 'string', description: 'Match id such as "NA1_5012345678".' }, ...PLAYER_PROPS },

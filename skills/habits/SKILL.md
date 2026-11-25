@@ -25,7 +25,9 @@ Scope requested: $ARGUMENTS (default: last 20 games, all queues).
 - **Strengths**: two or three, with numbers.
 - **Habits costing games**: up to three, ranked by impact. For each: the evidence (numbers and
   example games), why it loses games, and one concrete rule to practice.
-- **Champion pool and role**: what to keep playing, what to drop, based on games and win rate.
+- **Champion pool and role**: what to keep playing, what to drop, based on games and win rate. For
+  the main champions, check OP.GG (`lol_get_champion_analysis` at the player's tier, usage notes in
+  the `coach` skill) and note where their usual build or runes differ from the standard.
 - **Mental and session habits**: performance after losses and deep into sessions; suggest a
   stop-loss rule only if the data supports it.
 - **Focus for the next 10 games**: one primary goal with a measurable target (for example "average

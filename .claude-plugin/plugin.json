@@ -1,9 +1,15 @@
 {
   "name": "lol-coach",
-  "version": "0.1.0",
-  "description": "League of Legends coach: gives Claude your Riot match history, timelines and habit analysis so it can review games and tell you what to fix.",
+  "version": "0.2.0",
+  "description": "League of Legends coach: gives Claude your Riot match history, timelines and habit analysis, plus OP.GG champion builds, runes and win rates, so it can review games and tell you what to fix.",
   "license": "MIT",
-  "keywords": ["league-of-legends", "riot-api", "coaching", "gaming", "mcp"],
+  "keywords": [
+    "league-of-legends",
+    "riot-api",
+    "coaching",
+    "gaming",
+    "mcp"
+  ],
   "userConfig": {
     "riot_api_key": {
       "type": "string",
@@ -26,12 +32,18 @@
   "mcpServers": {
     "riot": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/server/index.mjs"],
+      "args": [
+        "${CLAUDE_PLUGIN_ROOT}/server/index.mjs"
+      ],
       "env": {
         "RIOT_API_KEY": "${user_config.riot_api_key}",
         "LOL_RIOT_ID": "${user_config.riot_id}",
         "LOL_PLATFORM": "${user_config.platform}"
       }
+    },
+    "opgg": {
+      "type": "http",
+      "url": "https://mcp-api.op.gg/mcp"
     }
   }
 }

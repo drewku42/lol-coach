@@ -29,6 +29,11 @@ export function makeMatch({ id = 'NA1_1', win = true, start = Date.UTC(2026, 10,
       item0: 3089, item1: 0, item2: 0, item3: 0, item4: 0, item5: 0, item6: 3340,
       gameEndedInEarlySurrender: remake, gameEndedInSurrender: false,
       challenges: { soloKills: 1, laneMinionsFirst10Minutes: 75 },
+      summoner1Id: 4, summoner2Id: 14,
+      perks: { styles: [
+        { description: 'primaryStyle', style: 8100, selections: [{ perk: 8112 }, { perk: 8143 }] },
+        { description: 'subStyle', style: 8200, selections: [{ perk: 8226 }] },
+      ] },
     };
   });
   return {
@@ -95,6 +100,11 @@ export function fakeFetch(matches, { timelineOpts, log = [] } = {}) {
     log.push({ host: u.host, path: u.pathname, key: opts?.headers?.['X-Riot-Token'] });
     const p = u.pathname;
     if (u.host.startsWith('ddragon')) {
+      if (p.endsWith('runesReforged.json')) return json([
+        { id: 8100, name: 'Domination', slots: [{ runes: [{ id: 8112, name: 'Electrocute' }] }, { runes: [{ id: 8143, name: 'Sudden Impact' }] }] },
+        { id: 8200, name: 'Sorcery', slots: [{ runes: [{ id: 8226, name: 'Manaflow Band' }] }] },
+      ]);
+      if (p.endsWith('summoner.json')) return json({ data: { SummonerFlash: { key: '4', name: 'Flash' }, SummonerDot: { key: '14', name: 'Ignite' } } });
       if (p.endsWith('versions.json')) return json(['16.23.1']);
       if (p.endsWith('item.json')) return json({ data: { 3089: { name: "Rabadon's Deathcap" }, 1056: { name: "Doran's Ring" } } });
       if (p.endsWith('champion.json')) return json({ data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri' }, LeeSin: { id: 'LeeSin', key: '64', name: 'Lee Sin' } } });

@@ -185,6 +185,8 @@ test('MCP server end to end', async () => {
   assert.equal((await call('get_match_detail', { match_id: 'NA1_1' })).laneOpponent.champion, 'Zed');
   const detail = await call('get_match_detail', { match_id: 'NA1_1' });
   assert.ok(detail.teams[0].players.some((x) => x.champion === 'Lee Sin'), 'display names, not API names');
+  assert.deepEqual(detail.player.runes, { keystone: 'Electrocute', primaryTree: 'Domination', primary: ['Sudden Impact'], secondaryTree: 'Sorcery', secondary: ['Manaflow Band'] });
+  assert.deepEqual(detail.player.summonerSpells, ['Flash', 'Ignite']);
   assert.equal((await call('get_match_timeline', { match_id: 'NA1_1' })).deaths.length, 3);
 
   const habits = await call('analyze_habits', { count: 10 });

@@ -52,6 +52,25 @@ function itemNames(p, staticData) {
   return names;
 }
 
+function runesOf(p, staticData) {
+  const name = (id) => staticData?.runes?.[id] || `rune ${id}`;
+  const styles = p.perks?.styles || [];
+  const primary = styles.find((x) => x.description === 'primaryStyle') || styles[0];
+  const secondary = styles.find((x) => x.description === 'subStyle') || styles[1];
+  if (!primary) return undefined;
+  const picks = (style) => (style?.selections || []).map((sel) => name(sel.perk));
+  return {
+    keystone: picks(primary)[0],
+    primaryTree: name(primary.style),
+    primary: picks(primary).slice(1),
+    secondaryTree: secondary ? name(secondary.style) : undefined,
+    secondary: picks(secondary),
+  };
+}
+
+const spellsOf = (p, staticData) =>
+  [p.summoner1Id, p.summoner2Id].filter(Boolean).map((id) => staticData?.spells?.[id] || `spell ${id}`);
+
 function teamTotals(match, teamId) {
   const team = match.info.participants.filter((x) => x.teamId === teamId);
   return {
@@ -120,6 +139,8 @@ export function matchDetail(match, puuid, staticData) {
 
   const detail = (x) => ({
     ...scoreboardRow(x, minutes, staticData),
+    runes: runesOf(x, staticData),
+    summonerSpells: spellsOf(x, staticData),
     goldPerMin: round(x.goldEarned / minutes, 0),
     damagePerMin: round(x.totalDamageDealtToChampions / minutes, 0),
     damageToObjectives: x.damageDealtToObjectives,
