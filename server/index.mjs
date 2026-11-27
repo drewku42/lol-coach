@@ -4,7 +4,7 @@ import readline from 'node:readline';
 import { RiotClient } from './riot.mjs';
 import { TOOLS } from './tools.mjs';
 
-const SERVER_INFO = { name: 'lol-coach', version: '0.1.0' };
+const SERVER_INFO = { name: 'lol-coach', version: '0.3.0' };
 const SUPPORTED_PROTOCOLS = ['2025-06-18', '2025-03-26', '2024-11-05'];
 
 export function createServer(client = new RiotClient()) {

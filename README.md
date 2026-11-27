@@ -13,6 +13,40 @@ matchups and win rates, so the coach can compare what you did with what works on
 - `/lol-coach:habits 30 ranked_solo` reports on habits across your last 30 solo queue games
 - Or just ask in plain language: "what should I work on to get out of Gold?"
 
+## The plan: goal, focuses, scorecards
+
+Coaching here is a loop rather than a one-off report:
+
+- **Rank goal**: the rank you are working towards, with LP to go and a rough pace estimate.
+- **Focuses**: up to three habits at a time, each with one rule to practise and a number that is
+  checked automatically after every game (for example "at most 1 death before 14:00, in 8 of 10
+  games"). Suggestions are generated from your own games.
+- **Scorecards**: every new game gets a pass or miss per focus. When you hit a target the focus
+  graduates and the next biggest problem takes its slot.
+
+The plan is stored in `~/.config/lol-coach/plan.json` and shared by the Claude Code plugin and the
+web app.
+
+## Web app
+
+A local dashboard and visual game review, with no AI required:
+
+```bash
+npm run setup
+```
+
+```bash
+npm run app
+```
+
+Then open <http://localhost:4173>. It shows your rank goal, focuses and scorecards, a trend chart
+per metric, and your recent games. Click a game for its review: gold lead through the game with
+deaths and objectives marked, a map of where you died, automatically picked key moments, and your
+runes, spells, skill order and items next to the most common ones for that matchup from OP.GG.
+
+The app only listens on your own machine. It uses the same key and settings as the plugin when you
+configured them with the setup script.
+
 ## Install
 
 Requires Claude Code and Node.js 18 or newer. No npm install needed.
@@ -54,6 +88,8 @@ The bundled MCP server (`server/`, plain Node, no dependencies) exposes these to
 | `get_match_detail` | One game: your stats, runes and summoner spells, lane opponent comparison, both scoreboards, objectives |
 | `get_match_timeline` | One game minute by minute: CS/gold/XP diffs at 5/10/15/20, every death (when, who, where), objectives, shop visits, warding |
 | `analyze_habits` | Patterns over 5-40 games: wins vs losses, per champion and role, laning, lead conversion, death patterns, game length, sessions and tilt |
+| `get_coaching_plan` | Rank goal progress, active focuses with per-game scorecards, suggested focuses |
+| `set_rank_goal`, `set_focus`, `update_focus` | Manage the plan |
 | `get_live_game` | Whether you are in a game now and the two rosters |
 | `get_setup_status` | Whether the key works (never returns the key) |
 

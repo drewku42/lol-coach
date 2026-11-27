@@ -171,7 +171,7 @@ test('MCP server end to end', async () => {
   assert.equal(init.result.protocolVersion, '2025-06-18');
   assert.equal(await handle({ jsonrpc: '2.0', method: 'notifications/initialized' }), null);
   const list = await handle({ jsonrpc: '2.0', id: 2, method: 'tools/list' });
-  assert.equal(list.result.tools.length, 7);
+  assert.equal(list.result.tools.length, 11);
   for (const t of list.result.tools) assert.equal(t.inputSchema.type, 'object');
 
   const profile = await call('get_player_profile');

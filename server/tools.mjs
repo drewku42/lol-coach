@@ -1,8 +1,10 @@
 // MCP tool definitions and handlers.
 import { loadConfig, normalizePlatform } from './config.mjs';
 import {
-  aggregateHabits, analyzeTimeline, gameRecord, matchDetail, queueId, queueName, summarizeMatch,
+  aggregateHabits, analyzeTimeline, matchDetail, queueId, queueName, summarizeMatch,
 } from './analysis.mjs';
+import { METRICS, TIERS, addFocus, clearGoal, setFocusStatus, setGoal } from './plan.mjs';
+import { getMatch, getPlan, loadRanks, loadRecords, pooled } from './service.mjs';
 
 const PLAYER_PROPS = {
   riot_id: {
@@ -18,27 +20,6 @@ const QUEUE_PROP = {
   type: 'string',
   description: 'Queue filter: all (default), ranked_solo, ranked_flex, normal_draft, quickplay, swiftplay, aram, clash, or a numeric queue id.',
 };
-
-// Run tasks with limited concurrency, stopping early once the deadline passes.
-async function pooled(items, limit, deadline, fn) {
-  const results = new Array(items.length);
-  let next = 0;
-  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (next < items.length && Date.now() < deadline) {
-      const i = next++;
-      results[i] = await fn(items[i]);
-    }
-  }));
-  return results;
-}
-
-// Fetch a match and swap the API's internal champion names ("MonkeyKing") for display names ("Wukong").
-async function getMatch(client, id, region) {
-  const [match, staticData] = await Promise.all([client.match(id, region), client.staticData()]);
-  const names = staticData.championNames || {};
-  for (const p of match.info.participants) p.championName = names[p.championName] || p.championName;
-  return match;
-}
 
 const player = (client, args) =>
   client.resolvePlayer(args.riot_id, args.platform ? normalizePlatform(args.platform) : undefined);
@@ -160,15 +141,7 @@ export const TOOLS = [
       const p = await player(client, args);
       const count = clampInt(args.count, 20, 5, 40);
       const withTimelines = args.include_timelines !== false;
-      const ids = await client.matchIds(p, { count, queue: queueId(args.queue) });
-      const deadline = Date.now() + 85000;
-      const records = (await pooled(ids, 4, deadline, async (id) => {
-        const match = await getMatch(client, id, p.region);
-        const timeline = withTimelines && match.info.gameMode === 'CLASSIC'
-          ? await client.timeline(id, p.region).catch(() => null)
-          : null;
-        return gameRecord(match, p.puuid, timeline);
-      })).filter(Boolean);
+      const { records, requested } = await loadRecords(client, p, { count, queue: args.queue, timelines: withTimelines });
 
       const norm = (s) => String(s || '').toLowerCase().replace(/[^a-z]/g, '');
       let filtered = records;
@@ -176,10 +149,92 @@ export const TOOLS = [
       if (args.role) filtered = filtered.filter((g) => g.role === norm(args.role));
 
       const out = { riotId: p.riotId, ...aggregateHabits(filtered) };
-      if (records.length < ids.length) {
-        out.partial = `Rate limits allowed only ${records.length} of ${ids.length} games this call. Call again with the same arguments to include the rest; fetched games are cached.`;
+      if (records.length < requested) {
+        out.partial = `Rate limits allowed only ${records.length} of ${requested} games this call. Call again with the same arguments to include the rest; fetched games are cached.`;
       }
       return out;
+    },
+  },
+  {
+    name: 'get_coaching_plan',
+    description:
+      'The player\'s coaching plan with live numbers: their rank goal and progress toward it (LP to go, rough games needed), up to three active focuses each with a per-game pass/fail scorecard since it was set, past focuses, and rule-based suggestions for new focuses. Call this at the start of any coaching conversation and after the player has played more games.',
+    inputSchema: { type: 'object', properties: { ...PLAYER_PROPS } },
+    async handler(client, args) {
+      const p = await player(client, args);
+      return (await getPlan(client, p)).status;
+    },
+  },
+  {
+    name: 'set_rank_goal',
+    description:
+      'Set (or replace) the player\'s rank goal, the long-term target the focuses serve. Records their current rank as the starting point. Only set a goal the player has chosen or agreed to. Pass clear:true to remove the goal.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...PLAYER_PROPS,
+        tier: { type: 'string', description: `Target tier: ${TIERS.join(', ')}.` },
+        division: { type: 'string', description: 'Target division: IV, III, II or I (IV is the entry to a tier and the default). Not used for MASTER.' },
+        queue: { type: 'string', description: 'ranked_solo (default) or ranked_flex.' },
+        clear: { type: 'boolean', description: 'Remove the current goal instead of setting one.' },
+      },
+    },
+    async handler(client, args) {
+      const p = await player(client, args);
+      if (args.clear) { clearGoal(p.riotId); return { cleared: true }; }
+      const queue = args.queue || 'ranked_solo';
+      const ranks = await loadRanks(client, p);
+      setGoal(p.riotId, { tier: args.tier, division: args.division, queue }, ranks[queue] || null);
+      return (await getPlan(client, p)).status.goal;
+    },
+  },
+  {
+    name: 'set_focus',
+    description:
+      `Add an active focus to the player's plan: one habit to practise, tied to a number that is checked automatically after every game. At most three can be active, so choose the highest-impact ones and agree them with the player. Metrics: ${Object.entries(METRICS).map(([k, m]) => `${k} (${m.label})`).join('; ')}.`,
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...PLAYER_PROPS,
+        title: { type: 'string', description: 'Short name, e.g. "Survive the early game".' },
+        finding: { type: 'string', description: 'The evidence from the player\'s own games, with numbers.' },
+        rule: { type: 'string', description: 'One concrete habit to practise, phrased as an instruction.' },
+        metric: { type: 'string', enum: Object.keys(METRICS) },
+        threshold: { type: 'number', description: 'The per-game value that counts as a pass, e.g. 1 for "at most 1 early death".' },
+        target_hits: { type: 'integer', description: 'Games that must pass within the window (default 80% of the window).' },
+        target_window: { type: 'integer', description: 'Window size in games (default 10).' },
+        queue: { type: 'string', description: 'Only count games in this queue, e.g. ranked_solo.' },
+        role: { type: 'string', description: 'Only count games in this role: top, jungle, mid, adc, support.' },
+        champion: { type: 'string', description: 'Only count games on this champion.' },
+      },
+      required: ['title', 'rule', 'metric', 'threshold'],
+    },
+    async handler(client, args) {
+      const p = await player(client, args);
+      const focus = addFocus(p.riotId, {
+        ...args, targetHits: args.target_hits, targetWindow: args.target_window,
+      });
+      const { status } = await getPlan(client, p);
+      return status.activeFocuses.find((f) => f.id === focus.id);
+    },
+  },
+  {
+    name: 'update_focus',
+    description:
+      'Close or reopen a focus: mark it achieved when its scorecard target is met, dropped if it is no longer relevant, or active to bring it back. Closing one frees a slot for the next focus.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        ...PLAYER_PROPS,
+        id: { type: 'string', description: 'Focus id from get_coaching_plan.' },
+        status: { type: 'string', enum: ['active', 'achieved', 'dropped'] },
+      },
+      required: ['id', 'status'],
+    },
+    async handler(client, args) {
+      const p = await player(client, args);
+      const f = setFocusStatus(p.riotId, args.id, args.status);
+      return { id: f.id, title: f.title, status: f.status };
     },
   },
   {

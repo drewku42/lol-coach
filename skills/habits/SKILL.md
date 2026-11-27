@@ -30,8 +30,8 @@ Scope requested: $ARGUMENTS (default: last 20 games, all queues).
   the `coach` skill) and note where their usual build or runes differ from the standard.
 - **Mental and session habits**: performance after losses and deep into sessions; suggest a
   stop-loss rule only if the data supports it.
-- **Focus for the next 10 games**: one primary goal with a measurable target (for example "average
-  under 2 deaths before 14:00" or "70 CS at 10:00"), so progress can be checked by running this
-  report again.
+- **Plan**: call `get_coaching_plan`. Report scorecard progress on the active focuses, and if there
+  is an open slot, propose the next focus (rule plus measurable target) and set it with `set_focus`
+  once the player agrees. Mention the rank goal and how far away it is.
 
 Follow the benchmarks and delivery guidance in the `coach` skill. Be honest about small samples.

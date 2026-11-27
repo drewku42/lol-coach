@@ -16,10 +16,10 @@ export function queueId(input) {
 
 export const queueName = (id) => QUEUE_NAMES[id] || `queue_${id}`;
 
-const round = (n, d = 1) => (Number.isFinite(n) ? Math.round(n * 10 ** d) / 10 ** d : null);
+export const round = (n, d = 1) => (Number.isFinite(n) ? Math.round(n * 10 ** d) / 10 ** d : null);
 const avg = (xs) => { const v = xs.filter(Number.isFinite); return v.length ? v.reduce((a, b) => a + b, 0) / v.length : null; };
 const pct = (num, den) => (den ? round((100 * num) / den, 0) : null);
-const clock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+export const clock = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
 const ROLE = { TOP: 'top', JUNGLE: 'jungle', MIDDLE: 'mid', BOTTOM: 'adc', UTILITY: 'support' };
 const roleOf = (p) => ROLE[p.teamPosition] || ROLE[p.individualPosition] || null;
@@ -224,13 +224,13 @@ export function zoneOf(pos, teamId) {
 
 const phaseOf = (ms) => (ms < 14 * 60000 ? 'early' : ms < 25 * 60000 ? 'mid' : 'late');
 
-function participantId(timeline, puuid) {
+export function participantId(timeline, puuid) {
   const entry = timeline.info.participants.find((x) => x.puuid === puuid);
   if (!entry) throw new Error('Player not found in timeline.');
   return entry.participantId;
 }
 
-function frameStats(frame, id) {
+export function frameStats(frame, id) {
   const f = frame?.participantFrames?.[String(id)];
   if (!f) return null;
   return {
@@ -302,6 +302,8 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
             const them = oppId ? frameStats(frames[frameIdx], oppId) : null;
             deaths.push({
               time: clock(e.timestamp),
+              minute: round(e.timestamp / 60000, 2),
+              x: e.position?.x, y: e.position?.y,
               phase,
               kind: deathKind(e, phase),
               killedBy: e.killerId ? champ[e.killerId] : 'tower/minions/monster',
@@ -314,6 +316,8 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
           } else if (e.killerId === id || assists.includes(id)) {
             kills.push({
               time: clock(e.timestamp),
+              minute: round(e.timestamp / 60000, 2),
+              x: e.position?.x, y: e.position?.y,
               phase,
               type: e.killerId === id ? (assists.length ? 'kill' : 'solo kill') : 'assist',
               victim: champ[e.victimId],
@@ -326,6 +330,7 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
           const mine = e.killerTeamId === p.teamId;
           objectives.push({
             time: clock(e.timestamp),
+            minute: round(e.timestamp / 60000, 2),
             team: mine ? 'ally' : 'enemy',
             objective: (e.monsterSubType || e.monsterType || '').toLowerCase().replace(/_/g, ' ').replace('horde', 'void grub'),
             playerInvolved: e.killerId === id || (e.assistingParticipantIds || []).includes(id),
@@ -336,6 +341,7 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
           // teamId is the team that LOST the building.
           objectives.push({
             time: clock(e.timestamp),
+            minute: round(e.timestamp / 60000, 2),
             team: e.teamId === p.teamId ? 'enemy' : 'ally',
             objective: `${(e.laneType || '').replace('_LANE', '').toLowerCase()} ${(e.towerType || e.buildingType || '')
               .replace('_BUILDING', '').replace('_TURRET', ' turret').toLowerCase()}`.trim(),
@@ -349,7 +355,7 @@ export function analyzeTimeline(match, timeline, puuid, staticData) {
             // Group buys from the same shop visit (within 20s) into one entry.
             if (lastBuy && e.timestamp - lastBuy.ts < 20000) lastBuy.entry.items.push(name);
             else {
-              const entry = { time: clock(e.timestamp), items: [name] };
+              const entry = { time: clock(e.timestamp), minute: round(e.timestamp / 60000, 2), items: [name] };
               purchases.push(entry);
               lastBuy = { entry };
             }
@@ -427,6 +433,8 @@ export function gameRecord(match, puuid, timeline) {
     timeDeadPct: (100 * (p.totalTimeSpentDead || 0)) / info.gameDuration,
     soloKills: p.challenges?.soloKills,
     surrendered: Boolean(p.gameEndedInSurrender),
+    kda: `${p.kills}/${p.deaths}/${p.assists}`,
+    vs: laneOpponent(match, p)?.championName || null,
   };
 
   if (timeline) {

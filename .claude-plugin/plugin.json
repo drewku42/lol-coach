@@ -1,6 +1,6 @@
 {
   "name": "lol-coach",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "League of Legends coach: gives Claude your Riot match history, timelines and habit analysis, plus OP.GG champion builds, runes and win rates, so it can review games and tell you what to fix.",
   "license": "MIT",
   "keywords": [
