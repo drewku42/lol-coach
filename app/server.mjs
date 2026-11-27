@@ -41,6 +41,11 @@ export function createApp({ client = new RiotClient(), opgg = new OpggClient() }
         games: games.map(gameRow),
       };
     },
+    // Image keys for champions, items, runes and spells (served by Riot's Data Dragon CDN).
+    'GET /api/static': async () => {
+      const s = await client.staticData();
+      return { version: s.version, icons: s.icons || { champion: {}, item: {}, rune: {}, spell: {} } };
+    },
     'GET /api/review': async (q) => {
       if (!/^[A-Z0-9]+_\d+$/.test(q.id || '')) throw httpError(400, 'Bad match id.');
       return getReview(client, await player(), q.id);

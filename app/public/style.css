@@ -90,3 +90,15 @@ tr.me td { background: var(--surface-2); font-weight: 600; }
 .kv { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 6px 12px; align-items: start; }
 .kv .h { font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--text-secondary); }
 ol.deaths { margin: 0; padding-left: 22px; } ol.deaths li { margin: 4px 0; }
+
+/* champion, item, rune and spell art */
+.ic { border-radius: 5px; vertical-align: middle; background: var(--surface-2); flex: none; }
+.ic.champion { border-radius: 50%; }
+.ic.rune { border-radius: 50%; background: #1c1c1c; padding: 1px; }
+.withic { display: inline-flex; align-items: center; gap: 7px; vertical-align: middle; }
+.icrow { display: inline-flex; align-items: center; gap: 4px; flex-wrap: wrap; vertical-align: middle; }
+.pill { font-size: 12px; padding: 2px 7px; border: 1px solid var(--border); border-radius: 10px; }
+.visits { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.visit { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); }
+.visit .t { font-size: 12px; color: var(--text-secondary); font-variant-numeric: tabular-nums; }
+ol.deaths .ic { margin: 0 1px; }

@@ -44,6 +44,8 @@ per metric, and your recent games. Click a game for its review: gold lead throug
 deaths and objectives marked, a map of where you died, automatically picked key moments, and your
 runes, spells, skill order and items next to the most common ones for that matchup from OP.GG.
 
+Champion, item, rune and summoner spell images are loaded from Riot's Data Dragon CDN.
+
 The app only listens on your own machine. It uses the same key and settings as the plugin when you
 configured them with the setup script.
 

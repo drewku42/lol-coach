@@ -101,12 +101,12 @@ export function fakeFetch(matches, { timelineOpts, log = [] } = {}) {
     const p = u.pathname;
     if (u.host.startsWith('ddragon')) {
       if (p.endsWith('runesReforged.json')) return json([
-        { id: 8100, name: 'Domination', slots: [{ runes: [{ id: 8112, name: 'Electrocute' }] }, { runes: [{ id: 8143, name: 'Sudden Impact' }] }] },
+        { id: 8100, name: 'Domination', icon: 'perk-images/Styles/7200_Domination.png', slots: [{ runes: [{ id: 8112, name: 'Electrocute', icon: 'perk-images/Styles/Domination/Electrocute/Electrocute.png' }] }, { runes: [{ id: 8143, name: 'Sudden Impact' }] }] },
         { id: 8200, name: 'Sorcery', slots: [{ runes: [{ id: 8226, name: 'Manaflow Band' }] }] },
       ]);
-      if (p.endsWith('summoner.json')) return json({ data: { SummonerFlash: { key: '4', name: 'Flash' }, SummonerDot: { key: '14', name: 'Ignite' } } });
+      if (p.endsWith('summoner.json')) return json({ data: { SummonerFlash: { id: 'SummonerFlash', key: '4', name: 'Flash' }, SummonerDot: { id: 'SummonerDot', key: '14', name: 'Ignite' } } });
       if (p.endsWith('versions.json')) return json(['16.23.1']);
-      if (p.endsWith('item.json')) return json({ data: { 3089: { name: "Rabadon's Deathcap" }, 1056: { name: "Doran's Ring" } } });
+      if (p.endsWith('item.json')) return json({ data: { 3089: { name: "Rabadon's Deathcap", maps: { 11: true } }, 1056: { name: "Doran's Ring", maps: { 11: true } } } });
       if (p.endsWith('champion.json')) return json({ data: { Ahri: { id: 'Ahri', key: '103', name: 'Ahri' }, LeeSin: { id: 'LeeSin', key: '64', name: 'Lee Sin' } } });
     }
     if (p.includes('/accounts/by-riot-id/')) return json({ puuid: ME, gameName: 'Tester', tagLine: 'NA1' });

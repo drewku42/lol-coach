@@ -212,7 +212,7 @@ export class RiotClient {
 
   async staticData() {
     if (this._static) return this._static;
-    const cached = this.readCache('static', 'ddragon-v3');
+    const cached = this.readCache('static', 'ddragon-v4');
     if (cached && Date.now() - cached.fetchedAt < 3 * 24 * 3600 * 1000) {
       return (this._static = cached);
     }
@@ -230,25 +230,40 @@ export class RiotClient {
         get(`${base}/cdn/${version}/data/en_US/runesReforged.json`),
         get(`${base}/cdn/${version}/data/en_US/summoner.json`),
       ]);
-      const data = { fetchedAt: Date.now(), version, items: {}, champions: {}, championNames: {}, runes: {}, spells: {} };
+      const data = { fetchedAt: Date.now(), version, items: {}, champions: {}, championNames: {}, runes: {}, spells: {}, icons: emptyIcons() };
       for (const tree of runes) {
         data.runes[tree.id] = tree.name;
-        for (const slot of tree.slots) for (const rune of slot.runes) data.runes[rune.id] = rune.name;
+        data.icons.rune[tree.name] = tree.icon;
+        for (const slot of tree.slots) for (const rune of slot.runes) {
+          data.runes[rune.id] = rune.name;
+          data.icons.rune[rune.name] = rune.icon;
+        }
       }
-      for (const spell of Object.values(spells.data)) data.spells[spell.key] = spell.name;
-      for (const [id, item] of Object.entries(items.data)) data.items[id] = item.name;
+      for (const spell of Object.values(spells.data)) {
+        data.spells[spell.key] = spell.name;
+        data.icons.spell[spell.name] = spell.id;
+      }
+      for (const [id, item] of Object.entries(items.data)) {
+        data.items[id] = item.name;
+        // Several ids can share a name (other game modes); keep the Summoner's Rift one.
+        if (!data.icons.item[item.name] || item.maps?.['11']) data.icons.item[item.name] = id;
+      }
       for (const champ of Object.values(champs.data)) {
         data.champions[champ.key] = champ.name; // numeric id -> display name
         data.championNames[champ.id] = champ.name; // API name ("MonkeyKing") -> display name ("Wukong")
+        data.icons.champion[champ.name] = champ.id;
       }
-      this.writeCache('static', 'ddragon-v3', data);
+      this.writeCache('static', 'ddragon-v4', data);
       return (this._static = data);
     } catch {
       // Names are a nicety; fall back to stale cache or raw IDs.
-      return (this._static = cached || { version: null, items: {}, champions: {}, championNames: {}, runes: {}, spells: {} });
+      return (this._static = cached || { version: null, items: {}, champions: {}, championNames: {}, runes: {}, spells: {}, icons: emptyIcons() });
     }
   }
 }
+
+// Display name -> Data Dragon image key, per kind. The web app turns these into image URLs.
+const emptyIcons = () => ({ champion: {}, item: {}, rune: {}, spell: {} });
 
 // Match IDs are prefixed with the platform, e.g. "NA1_5012345678".
 export function regionOfMatch(matchId) {

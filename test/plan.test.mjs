@@ -170,6 +170,12 @@ test('web app API', async () => {
     assert.equal((await json('/api/review?id=../etc')).status, 400);
     assert.equal((await json('/api/matchup?id=NA1_1')).body.available, false); // OP.GG offline is not an error
 
+    const st = (await json('/api/static')).body;
+    assert.equal(st.version, '16.23.1');
+    assert.equal(st.icons.champion['Lee Sin'], 'LeeSin');
+    assert.equal(st.icons.item["Rabadon's Deathcap"], '3089');
+    assert.equal(st.icons.spell.Flash, 'SummonerFlash');
+    assert.match(st.icons.rune.Electrocute, /Electrocute\.png$/);
     assert.equal((await fetch(base + '/')).status, 200);
     assert.equal((await fetch(base + '/../server.mjs')).status, 404);
     // fetch will not send a forged Host header, so use a raw request for the rebinding check.

@@ -11,6 +11,22 @@ const QUEUE = { ranked_solo: 'Solo', ranked_flex: 'Flex', normal_draft: 'Normal'
 const queueLabel = (q) => QUEUE[q] || (String(q).startsWith('queue_') ? 'Other' : q);
 const cap = (s) => (s ? s[0].toUpperCase() + s.slice(1).toLowerCase() : '');
 
+// ---- champion, item, rune and spell art (Riot's Data Dragon CDN) -----------------
+let art = { version: null, icons: { champion: {}, item: {}, rune: {}, spell: {} } };
+const DD = 'https://ddragon.leagueoflegends.com/cdn';
+
+function icon(kind, name, size = 22) {
+  const key = art.icons[kind]?.[name];
+  if (!key || !art.version) return '';
+  const src = kind === 'rune' ? `${DD}/img/${key}` : `${DD}/${art.version}/img/${kind}/${key}.png`;
+  return `<img class="ic ${kind}" src="${esc(src)}" alt="${esc(name)}" width="${size}" height="${size}" loading="lazy" data-tip="${esc(name)}" onerror="this.replaceWith(document.createTextNode(this.alt + ' '))">`;
+}
+// Icon plus name, for champions.
+const champ = (name, size = 22) => (name ? `<span class="withic">${icon('champion', name, size)}<span>${esc(name)}</span></span>` : '');
+// A row of icons; anything without art falls back to its name.
+const icons = (kind, names, size = 26, sep = '') =>
+  `<span class="icrow">${(names || []).map((n) => icon(kind, n, size) || `<span class="pill">${esc(n)}</span>`).join(sep)}</span>`;
+
 async function api(path, opts) {
   const res = await fetch(path, opts && { ...opts, headers: { 'Content-Type': 'application/json' }, body: opts.body && JSON.stringify(opts.body) });
   const data = await res.json().catch(() => ({ error: `Server returned ${res.status}` }));
@@ -157,7 +173,7 @@ function suggestCard(s, i) {
 function gamesTable(games) {
   const rows = games.map((g) => `<tr class="click" data-id="${esc(g.matchId)}"><td>${day(g.start)}</td><td>${esc(queueLabel(g.queue))}</td>
     <td>${g.remake ? '<span class="muted">Remake</span>' : `<span class="wl ${g.win ? 'w' : 'l'}">${g.win ? 'W' : 'L'}</span>`}</td>
-    <td>${esc(g.champion)}</td><td>${esc(g.role || '–')}</td><td class="muted">${g.vs ? `vs ${esc(g.vs)}` : ''}</td>
+    <td>${champ(g.champion, 24)}</td><td>${esc(g.role || '–')}</td><td class="muted">${g.vs ? `<span class="withic"><span>vs</span>${icon('champion', g.vs, 20)}<span>${esc(g.vs)}</span></span>` : ''}</td>
     <td class="num">${esc(g.kda)}</td><td class="num">${fmt(g.csPerMin)}</td><td class="num">${fmt(g.earlyDeaths)}</td>
     <td class="num">${signed(g.goldDiffAt15)}</td><td class="num">${fmt(g.minutes)}m</td></tr>`).join('');
   return `<table><thead><tr><th>Date</th><th>Queue</th><th></th><th>Champion</th><th>Role</th><th></th><th class="num">K/D/A</th>
@@ -198,7 +214,7 @@ function trendChart(el, o, trend) {
     <text x="${m.l}" y="${H - 6}">${day(games[0].start)}</text><text x="${W - m.r}" y="${H - 6}" text-anchor="end">${day(games[games.length - 1].start)}</text></svg>`;
   el.querySelectorAll('rect[data-i]').forEach((r) => {
     const g = games[Number(r.dataset.i)];
-    r.onmousemove = (ev) => showTip(`<b>${esc(g.champion)}</b> ${g.vs ? `vs ${esc(g.vs)}` : ''} · ${g.win ? 'Win' : 'Loss'}<br>${day(g.start)} · ${esc(queueLabel(g.queue))} · ${esc(g.kda)}<br>${esc(trend.label)}: <b>${fmt(g[trend.key])}</b><br><span class="muted">5-game average: ${fmt(Math.round(avg[Number(r.dataset.i)] * 10) / 10)}</span>`, ev);
+    r.onmousemove = (ev) => showTip(`<span class="withic">${icon('champion', g.champion, 20)}<b>${esc(g.champion)}</b></span> ${g.vs ? `vs ${esc(g.vs)}` : ''} · ${g.win ? 'Win' : 'Loss'}<br>${day(g.start)} · ${esc(queueLabel(g.queue))} · ${esc(g.kda)}<br>${esc(trend.label)}: <b>${fmt(g[trend.key])}</b><br><span class="muted">5-game average: ${fmt(Math.round(avg[Number(r.dataset.i)] * 10) / 10)}</span>`, ev);
     r.onmouseleave = hideTip;
     r.onclick = () => { location.hash = `#/match/${g.matchId}`; };
     r.style.cursor = 'pointer';
@@ -213,15 +229,20 @@ async function review(id) {
   view.innerHTML = `
     <div class="row"><a href="#/" class="muted">← Dashboard</a></div>
     <section class="card"><div class="row"><span class="wl ${d.win ? 'w' : 'l'}">${d.win ? 'W' : 'L'}</span>
-      <h1>${esc(d.champion)} ${esc(d.role || '')} ${d.vs ? `vs ${esc(d.vs)}` : ''}</h1><span class="spacer"></span>
+      ${icon('champion', d.champion, 48)}<h1>${esc(d.champion)} ${esc(d.role || '')}</h1>${d.vs ? `<span class="muted">vs</span>${icon('champion', d.vs, 36)}<h1>${esc(d.vs)}</h1>` : ''}<span class="spacer"></span>
       <span class="muted">${day(Date.parse(d.playedAt))} · ${esc(queueLabel(d.queue))} · ${fmt(d.durationMin)} min · patch ${esc(d.patch)}</span></div>
       <div class="row" style="margin-top:10px;gap:22px">${[['K/D/A', d.kda], ['Kill participation', `${d.killParticipation}%`], ['CS/min', d.csPerMin], ['Damage share', `${d.damageShare}%`],
         ['Vision score', d.visionScore], ['Control wards', d.controlWardsBought], ['Time dead', `${d.player.timeDeadPct}%`]]
-        .map(([k, v]) => `<div><div class="muted small">${k}</div><div style="font-size:18px;font-weight:600">${esc(v)}</div></div>`).join('')}</div></section>
+        .map(([k, v]) => `<div><div class="muted small">${k}</div><div style="font-size:18px;font-weight:600">${esc(v)}</div></div>`).join('')}
+        <span class="spacer"></span>
+        <div><div class="muted small">Runes and spells</div><div class="row" style="gap:4px">${d.player.runes ? icon('rune', d.player.runes.keystone, 30) + icon('rune', d.player.runes.secondaryTree, 20) : ''}${icons('spell', d.player.summonerSpells, 26)}</div></div>
+        <div><div class="muted small">Final items</div>${icons('item', d.items.filter((i) => !/Ward|Lens|Trinket/.test(i)), 30)}</div></div></section>
     <section class="card"><h2>Gold lead through the game</h2><div id="gold" class="chart"></div>
       <div class="legend"><span><i class="swatch" style="background:var(--series-1)"></i>You vs ${esc(d.vs || 'lane opponent')}</span>
         <span><i class="swatch" style="background:var(--series-2)"></i>Your team vs theirs</span>
-        <span>✕ your death</span><span>● your kill or assist</span><span>▲ objective for your team</span><span>▼ objective for the enemy</span></div></section>
+        <span>✕ your death</span><span>● your kill or assist</span><span>▲ objective for your team</span><span>▼ objective for the enemy</span></div>
+      <h3 style="margin-top:16px">What you bought, and when</h3>
+      <div class="visits">${tl.shopVisits.map((v) => `<div class="visit"><span class="t">${esc(v.time)}</span>${icons('item', v.items, 26)}</div>`).join('') || '<span class="muted">No purchases recorded.</span>'}</div></section>
     <div class="grid2">
       <section class="card"><h2>Where you died</h2><div class="row" style="align-items:flex-start;flex-wrap:nowrap;gap:14px">
         <div class="mapwrap" id="map"></div></div>
@@ -304,7 +325,8 @@ function deathMap(el, list, r) {
     ${tl.killsAndAssists.filter((k) => k.x !== undefined).map((k) => `<circle cx="${px(k.x)}" cy="${py(k.y)}" r="1.3" fill="var(--good)" stroke="#000" stroke-width=".3"/>`).join('')}
     ${deaths.map((d, i) => `<g data-d="${i}" style="cursor:default"><circle cx="${px(d.x)}" cy="${py(d.y)}" r="3.6" fill="var(--critical)" stroke="#fff" stroke-width=".6"/>
       <text x="${px(d.x)}" y="${py(d.y) + 1.3}" text-anchor="middle" style="fill:#fff;font-size:3.6px;font-weight:700">${i + 1}</text></g>`).join('')}</svg>`;
-  const text = (d) => `<b>${esc(d.time)}</b> · ${esc(d.kind)} by ${esc(d.killedBy)}${d.assistedBy.length ? ` with ${esc(d.assistedBy.join(', '))}` : ''} · ${esc(d.zone || '')}${d.goldDiffVsLaner !== undefined ? ` <span class="muted">(you were ${signed(d.goldDiffVsLaner)} gold vs lane)</span>` : ''}`;
+  const who = (n) => icon('champion', n, 18) || esc(n);
+  const text = (d) => `<b>${esc(d.time)}</b> · ${esc(d.kind)} by ${who(d.killedBy)} ${esc(d.killedBy)}${d.assistedBy.length ? ` with ${d.assistedBy.map(who).join(' ')}` : ''} · ${esc(d.zone || '')}${d.goldDiffVsLaner !== undefined ? ` <span class="muted">(you were ${signed(d.goldDiffVsLaner)} gold vs lane)</span>` : ''}`;
   list.innerHTML = deaths.map((d) => `<li>${text(d)}</li>`).join('') || '<p class="muted">No deaths. Clean game.</p>';
   el.querySelectorAll('g[data-d]').forEach((g) => {
     const d = deaths[Number(g.dataset.d)];
@@ -322,7 +344,8 @@ function buildCheck(el, r, mu) {
   const mark = (ok) => (ok ? '' : ' <span class="diff">differs</span>');
   const myRunes = me.runes ? [me.runes.keystone, ...me.runes.primary] : [];
   const stdRunes = mu.runes ? [mu.runes.keystone, ...mu.runes.primary] : [];
-  const finished = (me.items || []).filter((i) => !/Ward|Lens|Trinket|Potion|Doran|Boots$|Long Sword|Amplifying|Cloth Armor|Ruby Crystal|Dagger|Glowing Mote|Sapphire/.test(i));
+  const finished = (me.items || []).filter((i) => !/Ward|Lens|Trinket|Potion|Doran|Boots$|Long Sword|Amplifying|Cloth Armor|Ruby Crystal|Dagger|Glowing Mote|Sapphire/.test(i) && !/Boots|Greaves|Shoes|Steelcaps|Treads|Swiftness|Lucidity/.test(i));
+  const myBoots = (me.items || []).find((i) => /Boots|Greaves|Shoes|Steelcaps|Treads|Swiftness|Lucidity/.test(i));
   const std = mu.coreBuilds[0];
   const coreOverlap = std ? std.items.filter((i) => finished.includes(i)).length : 0;
   const order = tl.skillOrder.slice(0, mu.skillOrder.length || 15);
@@ -333,25 +356,32 @@ function buildCheck(el, r, mu) {
     ${mu.tip ? `<p class="muted small">${esc(mu.tip)}</p>` : ''}
     <div class="kv">
       <div></div><div class="h">You</div><div class="h">Most common in this matchup</div>
-      ${row('Runes', `${esc(myRunes.join(', ') || '–')}<br><span class="muted">${esc(me.runes?.secondaryTree || '')}: ${esc((me.runes?.secondary || []).join(', '))}</span>${mark(same(myRunes, stdRunes) && same(me.runes?.secondary, mu.runes?.secondary))}`,
-        `${esc(stdRunes.join(', ') || '–')}<br><span class="muted">${esc(mu.runes?.secondaryTree || '')}: ${esc((mu.runes?.secondary || []).join(', '))}</span>${mu.runes ? `<br><span class="muted small">${mu.runes.winRate}% win rate over ${fmt(mu.runes.games)} games</span>` : ''}`)}
-      ${row('Summoner spells', `${esc((me.summonerSpells || []).join(', '))}${mark(same(me.summonerSpells, mu.summonerSpells))}`, esc((mu.summonerSpells || []).join(', ')))}
+      ${row('Runes', `${runePage(me.runes)}${mark(same(myRunes, stdRunes) && same(me.runes?.secondary, mu.runes?.secondary))}`,
+        `${runePage(mu.runes)}${mu.runes ? `<div class="muted small">${mu.runes.winRate}% win rate over ${fmt(mu.runes.games)} games</div>` : ''}`)}
+      ${row('Summoner spells', `${icons('spell', me.summonerSpells, 28)}${mark(same(me.summonerSpells, mu.summonerSpells))}`, icons('spell', mu.summonerSpells, 28))}
       ${row('Skill order', `<code>${esc(order)}</code>${mark(!mu.skillOrder || order === mu.skillOrder.slice(0, order.length))}`, `<code>${esc(mu.skillOrder)}</code>`)}
-      ${row('Items', `${esc(finished.join(', ') || '–')}${std ? (coreOverlap === std.items.length ? '' : ` <span class="diff">${coreOverlap} of ${std.items.length} core items</span>`) : ''}`,
-        mu.coreBuilds.map((b) => `${esc(b.items.join(' → '))} <span class="muted small">${b.winRate}% over ${fmt(b.games)} games</span>`).join('<br>'))}
-      ${mu.boots ? row('Boots', esc((me.items || []).find((i) => /Boots|Greaves|Shoes|Steelcaps|Treads|Swiftness|Lucidity/.test(i)) || '–'), `${esc(mu.boots.items.join(', '))} <span class="muted small">${mu.boots.pickRate}% pick</span>`) : ''}
+      ${row('Items', `${icons('item', finished, 30)}${std ? (coreOverlap === std.items.length ? '' : ` <span class="diff">${coreOverlap} of ${std.items.length} core items</span>`) : ''}`,
+        mu.coreBuilds.map((b) => `<div class="row" style="gap:8px;margin-bottom:4px">${icons('item', b.items, 30, '<span class="muted">→</span>')}<span class="muted small">${b.winRate}% over ${fmt(b.games)} games</span></div>`).join(''))}
+      ${mu.boots ? row('Boots', icons('item', [myBoots].filter(Boolean), 30) || '–', `<div class="row" style="gap:8px">${icons('item', mu.boots.items, 30)}<span class="muted small">${mu.boots.pickRate}% pick</span></div>`) : ''}
     </div>
     <p class="muted small" style="margin-bottom:0">A difference is not automatically a mistake: a situational item that answers the enemy team can be right. Small samples are noisy.</p>`;
 }
 
+// Keystone large, the rest of the page smaller, names underneath.
+function runePage(r) {
+  if (!r) return '–';
+  return `<div class="row" style="gap:6px">${icon('rune', r.keystone, 38)}${icons('rune', r.primary, 26)}<span class="muted">·</span>${icon('rune', r.secondaryTree, 18)}${icons('rune', r.secondary, 26)}</div>
+    <div class="muted small">${esc([r.keystone, ...(r.primary || [])].join(', '))} · ${esc(r.secondaryTree || '')}: ${esc((r.secondary || []).join(', '))}</div>`;
+}
+
 function scoreboard(d) {
   const maxDmg = Math.max(...d.teams.flatMap((t) => t.players.map((p) => p.damageToChamps)));
-  const team = (t) => `<tr><th colspan="7">${t.isPlayersTeam ? 'Your team' : 'Enemy team'} · ${t.win ? 'Victory' : 'Defeat'} · ${t.kills} kills · ${fmt(t.gold)} gold · towers ${t.objectives.towers ?? 0} · dragons ${t.objectives.dragons ?? 0} · barons ${t.objectives.barons ?? 0}</th></tr>
-    ${t.players.map((p) => `<tr class="${t.isPlayersTeam && p.champion === d.champion && p.role === d.role ? 'me' : ''}"><td>${esc(p.champion)}</td><td class="muted">${esc(p.role || '')}</td><td class="num">${esc(p.kda)}</td>
+  const team = (t) => `<tr><th colspan="8">${t.isPlayersTeam ? 'Your team' : 'Enemy team'} · ${t.win ? 'Victory' : 'Defeat'} · ${t.kills} kills · ${fmt(t.gold)} gold · towers ${t.objectives.towers ?? 0} · dragons ${t.objectives.dragons ?? 0} · barons ${t.objectives.barons ?? 0}</th></tr>
+    ${t.players.map((p) => `<tr class="${t.isPlayersTeam && p.champion === d.champion && p.role === d.role ? 'me' : ''}"><td>${champ(p.champion, 26)}</td><td class="muted">${esc(p.role || '')}</td><td class="num">${esc(p.kda)}</td>
       <td class="num">${p.cs}</td><td class="num">${fmt(p.gold)}</td>
       <td style="min-width:150px"><div class="row" style="flex-wrap:nowrap;gap:6px"><div class="bar" style="flex:1;margin:0;height:6px"><i style="width:${(100 * p.damageToChamps) / maxDmg}%"></i></div><span class="small" style="min-width:46px;text-align:right">${fmt(p.damageToChamps)}</span></div></td>
-      <td class="num">${p.visionScore}</td></tr>`).join('')}`;
-  return `<table><thead><tr><th>Champion</th><th>Role</th><th class="num">K/D/A</th><th class="num">CS</th><th class="num">Gold</th><th>Damage to champions</th><th class="num">Vision</th></tr></thead>
+      <td class="num">${p.visionScore}</td><td>${icons('item', p.items.filter((i) => !/Ward|Lens|Trinket/.test(i)), 24)}</td></tr>`).join('')}`;
+  return `<table><thead><tr><th>Champion</th><th>Role</th><th class="num">K/D/A</th><th class="num">CS</th><th class="num">Gold</th><th>Damage to champions</th><th class="num">Vision</th><th>Items</th></tr></thead>
     <tbody>${d.teams.slice().sort((a) => (a.isPlayersTeam ? -1 : 1)).map(team).join('')}</tbody></table>`;
 }
 
@@ -359,7 +389,10 @@ function scoreboard(d) {
 async function route(force) {
   hideTip();
   const m = location.hash.match(/^#\/match\/([A-Z0-9]+_\d+)$/);
-  try { if (m) await review(m[1]); else await dashboard(force); } catch (err) { showError(err); }
+  try {
+    if (!art.version) art = await api('/api/static').catch(() => art);
+    if (m) await review(m[1]); else await dashboard(force);
+  } catch (err) { showError(err); }
   window.scrollTo(0, 0);
 }
 addEventListener('hashchange', () => route(false));
