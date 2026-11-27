@@ -44,6 +44,19 @@ per metric, and your recent games. Click a game for its review: gold lead throug
 deaths and objectives marked, a map of where you died, automatically picked key moments, and your
 runes, spells, skill order and items next to the most common ones for that matchup from OP.GG.
 
+### Chat with the coach
+
+The **Coach** button opens a chat panel. It runs the Claude Code command-line tool that is already
+installed and logged in on your computer, with this plugin loaded, so it uses your own Claude
+login (for example a Claude subscription) and needs no API key. The chat can only call the
+plugin's Riot and OP.GG tools: it has no shell, file or web access. It knows which page you are on,
+and when it sets a goal or focus the dashboard updates.
+
+This is for personal use on your own machine. Anthropic does not allow apps to route other
+people's requests through a subscription login, so a hosted or shared version would need to call
+the Claude API with an API key instead. Chat messages count against your plan's usage limits; the
+model defaults to Sonnet and can be changed with the `LOL_COACH_CHAT_MODEL` environment variable.
+
 Champion, item, rune and summoner spell images are loaded from Riot's Data Dragon CDN.
 
 The app only listens on your own machine. It uses the same key and settings as the plugin when you

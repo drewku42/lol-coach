@@ -385,12 +385,129 @@ function scoreboard(d) {
     <tbody>${d.teams.slice().sort((a) => (a.isPlayersTeam ? -1 : 1)).map(team).join('')}</tbody></table>`;
 }
 
+// ---- chat with the coach -------------------------------------------------------
+const chatEl = document.getElementById('chat'), chatLog = document.getElementById('chatlog');
+const chatInput = document.getElementById('chatinput'), chatSend = document.getElementById('chatsend');
+let chatSession = sessionStorage.getItem('lol-coach-chat') || null;
+let chatBusy = false;
+
+// Small, safe Markdown: escape everything first, then allow bold, code, lists and paragraphs.
+function md(text) {
+  const inline = (t) => esc(t).replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>').replace(/`([^`]+)`/g, '<code>$1</code>');
+  const out = [];
+  let list = null;
+  const close = () => { if (list) { out.push(`</${list}>`); list = null; } };
+  for (const block of String(text).split(/\n{2,}/)) {
+    for (const line of block.split('\n')) {
+      const b = line.match(/^\s*[-*]\s+(.*)$/), n = line.match(/^\s*\d+[.)]\s+(.*)$/), h = line.match(/^#{1,6}\s+(.*)$/);
+      if (b || n) {
+        const kind = b ? 'ul' : 'ol';
+        if (list !== kind) { close(); out.push(`<${kind}>`); list = kind; }
+        out.push(`<li>${inline((b || n)[1])}</li>`);
+      } else if (line.trim()) {
+        close();
+        out.push(h ? `<p><b>${inline(h[1])}</b></p>` : `<p>${inline(line)}</p>`);
+      }
+    }
+    close();
+  }
+  return out.join('');
+}
+
+function chatContext() {
+  const m = location.hash.match(/^#\/match\/([A-Z0-9]+_\d+)$/);
+  return m ? `the player has the review of match ${m[1]} open` : 'the player is on the dashboard';
+}
+
+function chatStarters() {
+  const onMatch = location.hash.startsWith('#/match/');
+  const ideas = onMatch
+    ? ['Review this game with me', 'What was my biggest mistake in this game?', 'Was my build right for this matchup?']
+    : ['How am I doing on my focuses?', 'What should I work on next?', 'Help me pick a rank goal'];
+  chatLog.innerHTML = `<div class="muted small">Ask about your games, your plan, builds or matchups. The coach reads your real match data.</div>
+    <div class="starters">${ideas.map((t) => `<button type="button" data-starter="${esc(t)}">${esc(t)}</button>`).join('')}</div>`;
+  chatLog.querySelectorAll('[data-starter]').forEach((b) => { b.onclick = () => sendChat(b.dataset.starter); });
+}
+
+function addMsg(cls, html) {
+  const el = document.createElement('div');
+  el.className = `msg ${cls}`;
+  el.innerHTML = html;
+  chatLog.appendChild(el);
+  chatLog.scrollTop = chatLog.scrollHeight;
+  return el;
+}
+
+async function sendChat(message) {
+  message = message.trim();
+  if (!message || chatBusy) return;
+  chatBusy = true; chatSend.disabled = true; chatInput.value = '';
+  if (chatLog.querySelector('.starters')) chatLog.innerHTML = '';
+  addMsg('user', esc(message));
+  const bubble = addMsg('coach', '');
+  const status = document.createElement('div');
+  status.className = 'working'; status.textContent = 'Thinking';
+  chatLog.appendChild(status);
+  let text = '', planChanged = false;
+  const onEvent = (e) => {
+    if (e.type === 'text') { text += e.delta; bubble.innerHTML = md(text); status.textContent = 'Writing'; }
+    else if (e.type === 'tool') status.textContent = e.label;
+    else if (e.type === 'done') {
+      if (e.sessionId) { chatSession = e.sessionId; sessionStorage.setItem('lol-coach-chat', chatSession); }
+      planChanged = Boolean(e.planChanged);
+      if (e.error) { bubble.classList.add('error'); bubble.innerHTML = `${text ? md(text) : ''}<p>${esc(e.error)}</p>`; }
+    }
+    chatLog.scrollTop = chatLog.scrollHeight;
+  };
+  try {
+    const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message, sessionId: chatSession, context: chatContext() }) });
+    if (!res.ok || !res.body) throw new Error((await res.json().catch(() => ({}))).error || `Server returned ${res.status}`);
+    const reader = res.body.getReader(), decoder = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const line = buf.slice(0, i); buf = buf.slice(i + 2);
+        if (line.startsWith('data: ')) onEvent(JSON.parse(line.slice(6)));
+      }
+    }
+  } catch (err) {
+    bubble.classList.add('error'); bubble.innerHTML = `<p>${esc(err.message)}</p>`;
+  }
+  if (!bubble.innerHTML) bubble.remove();
+  status.remove();
+  chatBusy = false; chatSend.disabled = false; chatInput.focus();
+  // The coach may have set a goal or focus: show it without a manual refresh.
+  if (planChanged) { overview = null; if (!location.hash.startsWith('#/match/')) route(true); }
+}
+
+function toggleChat(open) {
+  chatEl.hidden = !open;
+  document.body.classList.toggle('chat-open', open);
+  document.getElementById('chattoggle').setAttribute('aria-expanded', String(open));
+  sessionStorage.setItem('lol-coach-chat-open', open ? '1' : '');
+  if (open) { if (!chatLog.children.length) chatStarters(); chatInput.focus(); }
+}
+document.getElementById('chattoggle').onclick = () => toggleChat(chatEl.hidden);
+document.getElementById('chatclose').onclick = () => toggleChat(false);
+document.getElementById('chatnew').onclick = () => { if (chatBusy) return; chatSession = null; sessionStorage.removeItem('lol-coach-chat'); chatStarters(); };
+document.getElementById('chatform').onsubmit = (e) => { e.preventDefault(); sendChat(chatInput.value); };
+chatInput.onkeydown = (e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat(chatInput.value); } };
+addEventListener('hashchange', () => { if (!chatEl.hidden && chatLog.querySelector('.starters')) chatStarters(); });
+if (sessionStorage.getItem('lol-coach-chat-open')) toggleChat(true);
+
 // ---- routing and shared behaviour ---------------------------------------------
 async function route(force) {
   hideTip();
   const m = location.hash.match(/^#\/match\/([A-Z0-9]+_\d+)$/);
   try {
-    if (!art.version) art = await api('/api/static').catch(() => art);
+    if (!art.version) {
+      art = await api('/api/static').catch(() => art);
+      if (art.riotId) document.getElementById('who').textContent = `${art.riotId} · ${String(art.platform || '').toUpperCase()}`;
+    }
     if (m) await review(m[1]); else await dashboard(force);
   } catch (err) { showError(err); }
   window.scrollTo(0, 0);

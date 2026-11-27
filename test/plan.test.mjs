@@ -12,6 +12,8 @@ import {
 import { reviewData } from '../server/review.mjs';
 import { RiotClient } from '../server/riot.mjs';
 import { createApp } from '../app/server.mjs';
+import { chatArgs, createTranslator, runChat } from '../app/chat.mjs';
+import { EventEmitter } from 'node:events';
 import { ME, fakeFetch, makeMatch, makeTimeline } from './fixtures.mjs';
 
 const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'lol-coach-plan-'));
@@ -144,7 +146,13 @@ test('web app API', async () => {
     getConfig: () => ({ apiKey: 'RGAPI-test', riotId: 'Tester#NA1', platform: 'na1' }),
   });
   const opgg = { matchup: async () => { throw new Error('offline'); } };
-  const server = http.createServer(createApp({ client, opgg })).listen(0, '127.0.0.1');
+  const chatCalls = [];
+  const chat = (input, emit) => {
+    chatCalls.push(input);
+    setImmediate(() => { emit({ type: 'tool', label: 'Reading your plan' }); emit({ type: 'text', delta: 'Hello' }); emit({ type: 'done', sessionId: '11111111-2222-3333-4444-555555555555', planChanged: true }); });
+    return () => {};
+  };
+  const server = http.createServer(createApp({ client, opgg, chat })).listen(0, '127.0.0.1');
   await new Promise((r) => server.once('listening', r));
   const base = `http://127.0.0.1:${server.address().port}`;
   const json = async (p, opts) => { const r = await fetch(base + p, opts); return { status: r.status, body: await r.json() }; };
@@ -170,6 +178,14 @@ test('web app API', async () => {
     assert.equal((await json('/api/review?id=../etc')).status, 400);
     assert.equal((await json('/api/matchup?id=NA1_1')).body.available, false); // OP.GG offline is not an error
 
+    const chatRes = await fetch(base + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ message: 'hi', context: 'the player is on the dashboard' }) });
+    assert.match(chatRes.headers.get('content-type'), /event-stream/);
+    const events = (await chatRes.text()).trim().split('\n\n').map((l) => JSON.parse(l.replace(/^data: /, '')));
+    assert.deepEqual(events.map((e) => e.type), ['tool', 'text', 'done']);
+    assert.match(chatCalls[0].message, /^\[App context: the player is on the dashboard\]\n\nhi$/);
+    assert.equal((await post('/api/chat', { message: '  ' })).status, 400);
+    assert.equal((await post('/api/chat', { message: 'hi', sessionId: 'x; rm -rf' })).status, 400);
+
     const st = (await json('/api/static')).body;
     assert.equal(st.version, '16.23.1');
     assert.equal(st.icons.champion['Lee Sin'], 'LeeSin');
@@ -188,4 +204,44 @@ test('web app API', async () => {
     server.close();
     delete process.env.LOL_COACH_PLAN;
   }
+});
+
+test('chat: CLI arguments and stream translation', async () => {
+  const args = chatArgs({ message: 'hello', sessionId: 'abc' });
+  assert.equal(args[0], '-p');
+  assert.equal(args[1], 'hello');
+  assert.ok(args.includes('stream-json') && args.includes('--plugin-dir'));
+  assert.equal(args[args.indexOf('--resume') + 1], 'abc');
+  assert.ok(!chatArgs({ message: 'x' }).includes('--resume'));
+  const allowed = args[args.indexOf('--allowedTools') + 1];
+  assert.ok(allowed.includes('mcp__plugin_lol-coach_riot') && !allowed.includes('Bash'));
+  assert.ok(args[args.indexOf('--disallowedTools') + 1].includes('Bash'));
+
+  const events = [];
+  const t = createTranslator((e) => events.push(e));
+  const send = (o) => t.line(JSON.stringify(o));
+  send({ type: 'system', subtype: 'init', session_id: 's1' });
+  t.line('not json');
+  send({ type: 'stream_event', event: { type: 'content_block_start', content_block: { type: 'tool_use', name: 'ToolSearch' } } });
+  send({ type: 'stream_event', event: { type: 'content_block_start', content_block: { type: 'tool_use', name: 'mcp__plugin_lol-coach_riot__set_focus' } } });
+  send({ type: 'stream_event', event: { type: 'content_block_delta', delta: { type: 'text_delta', text: 'Done.' } } });
+  send({ type: 'result', subtype: 'success', result: 'Done.', session_id: 's1' });
+  send({ type: 'result', subtype: 'success', result: 'again' }); // ignored
+  assert.deepEqual(events, [
+    { type: 'tool', label: 'Adding a focus' },
+    { type: 'text', delta: 'Done.' },
+    { type: 'done', sessionId: 's1', planChanged: true, error: undefined },
+  ]);
+
+  // Claude Code not installed: a clear message instead of a crash.
+  const done = await new Promise((resolve) => {
+    const fakeSpawn = () => {
+      const child = new EventEmitter();
+      child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.kill = () => {};
+      setImmediate(() => child.emit('error', Object.assign(new Error('spawn claude ENOENT'), { code: 'ENOENT' })));
+      return child;
+    };
+    runChat({ message: 'hi' }, (e) => { if (e.type === 'done') resolve(e); }, { spawnImpl: fakeSpawn });
+  });
+  assert.match(done.error, /Claude Code installed and logged in/);
 });

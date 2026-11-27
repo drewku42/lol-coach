@@ -11,6 +11,7 @@ import { OpggClient } from '../server/opgg.mjs';
 import { TIERS, addFocus, clearGoal, setFocusStatus, setGoal } from '../server/plan.mjs';
 import { RiotClient } from '../server/riot.mjs';
 import { getMatch, getPlan, getReview, loadRanks } from '../server/service.mjs';
+import { runChat } from './chat.mjs';
 
 const PUBLIC = path.join(path.dirname(fileURLToPath(import.meta.url)), 'public');
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.svg': 'image/svg+xml' };
@@ -27,7 +28,7 @@ const gameRow = (g) => ({
   visionPerMin: round(g.visionPerMin, 2), controlWards: g.controlWards, killParticipation: round(g.killParticipation, 0),
 });
 
-export function createApp({ client = new RiotClient(), opgg = new OpggClient() } = {}) {
+export function createApp({ client = new RiotClient(), opgg = new OpggClient(), chat = runChat } = {}) {
   const player = () => client.resolvePlayer();
 
   const routes = {
@@ -44,7 +45,8 @@ export function createApp({ client = new RiotClient(), opgg = new OpggClient() }
     // Image keys for champions, items, runes and spells (served by Riot's Data Dragon CDN).
     'GET /api/static': async () => {
       const s = await client.staticData();
-      return { version: s.version, icons: s.icons || { champion: {}, item: {}, rune: {}, spell: {} } };
+      const cfg = loadConfig();
+      return { version: s.version, riotId: cfg.riotId || null, platform: cfg.platform, icons: s.icons || { champion: {}, item: {}, rune: {}, spell: {} } };
     },
     'GET /api/review': async (q) => {
       if (!/^[A-Z0-9]+_\d+$/.test(q.id || '')) throw httpError(400, 'Bad match id.');
@@ -85,6 +87,27 @@ export function createApp({ client = new RiotClient(), opgg = new OpggClient() }
     // Local only: refuse requests that arrive under another hostname (DNS rebinding).
     const host = String(req.headers.host || '').replace(/:\d+$/, '');
     if (!['localhost', '127.0.0.1', '[::1]'].includes(host)) return send(403, { error: 'Local access only.' });
+
+    // Chat streams its reply as server-sent events.
+    if (req.method === 'POST' && url.pathname === '/api/chat') {
+      let body;
+      try {
+        if (!String(req.headers['content-type'] || '').startsWith('application/json')) throw httpError(415, 'JSON only.');
+        body = JSON.parse((await readBody(req)) || '{}');
+        if (typeof body.message !== 'string' || !body.message.trim()) throw httpError(400, 'Say something first.');
+        if (body.sessionId && !/^[0-9a-f-]{36}$/i.test(body.sessionId)) throw httpError(400, 'Bad session id.');
+      } catch (err) {
+        return send(err.http || 400, { error: err.message });
+      }
+      res.writeHead(200, { 'Content-Type': 'text/event-stream; charset=utf-8', 'Cache-Control': 'no-store', Connection: 'keep-alive', 'X-Accel-Buffering': 'no' });
+      const context = typeof body.context === 'string' && body.context ? `[App context: ${body.context.slice(0, 300)}]\n\n` : '';
+      const stop = chat({ message: context + body.message.slice(0, 4000), sessionId: body.sessionId || undefined }, (event) => {
+        res.write(`data: ${JSON.stringify(event)}\n\n`);
+        if (event.type === 'done') res.end();
+      });
+      res.on('close', stop);
+      return;
+    }
 
     const route = routes[`${req.method} ${url.pathname}`];
     if (route) {
