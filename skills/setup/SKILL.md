@@ -31,11 +31,21 @@ The key goes in through one of the two routes below, which the user performs.
 After either route, call `get_setup_status` again to confirm `apiKeyValid` is true, then offer to
 run a first habit report.
 
+## The web app
+
+The repository also contains a local web app (dashboard, plan, visual game reviews and a chat
+panel). From a clone of the repository, `npm run app` starts it at http://localhost:4173. It reads
+the key from the setup script's config file, not from the plugin settings, so a user who wants the
+app should use the setup script route. `npm run check` reports whether the key is working.
+
 ## Keys that do not expire daily
 
-For regular personal use, the user can register a **Personal API key** on the Riot developer
-portal ("Register Product" > "Personal API Key"): describe the project, wait for approval, and the
-key stops expiring. Each person who installs this plugin uses their own key; a single shared key
+For regular personal use, the user can register a **Personal API Key** on the Riot developer
+portal: sign in, choose "Register Product", pick "Personal API Key", and describe the project (a
+personal coaching tool that reads their own match history). Riot reviews it, which can take from
+a few days to a couple of weeks. Once approved the key does not expire, and it has the same rate
+limits as a development key. It is meant for personal projects and small private groups, not
+public products. Each person who installs this plugin uses their own key; a single shared key
 for many users would need a Riot **Production key** and a hosted service.
 
 ## Troubleshooting

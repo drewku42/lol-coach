@@ -128,6 +128,13 @@ the limit, the tool returns what it has and says to call again.
 - Each user brings their own key. Serving many users from one key requires a Riot Production key
   and a hosted service, which this plugin deliberately avoids.
 
+## Setting up with an agent
+
+If you open this repository in Claude Code, ask it to "install lol-coach" (or run `/install`). The
+project skill in `.claude/skills/install` walks through the checks, the plugin install, the key
+setup and starting the app. `npm run check` reports whether your key is working without showing
+it.
+
 ## Development
 
 ```bash

@@ -12,6 +12,7 @@
     "start": "node server/index.mjs",
     "setup": "node server/setup.mjs",
     "test": "node --test",
-    "app": "node app/server.mjs"
+    "app": "node app/server.mjs",
+    "check": "node server/check.mjs"
   }
 }
