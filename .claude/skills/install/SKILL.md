@@ -31,7 +31,7 @@ claude plugin validate .
 ```
 
 ```bash
-claude plugin marketplace add .
+claude plugin marketplace add ./
 ```
 
 ```bash
